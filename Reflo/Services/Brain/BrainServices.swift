@@ -5,7 +5,7 @@ protocol QuizGenerating: Sendable {
 }
 
 protocol MendingParagraphProviding: Sendable {
-    func mend(question: QuizQuestion) async throws -> String
+    func mend(question: QuizQuestion, pickedChoiceIndex: Int, bookTitle: String, chapterTitle: String) async throws -> String
 }
 
 protocol SecondExampleProviding: Sendable {

@@ -64,7 +64,12 @@ final class QuizViewModel: ObservableObject {
             isFetchingMending = true
             phase = .missed
             do {
-                mendingParagraph = try await brain.mend(question: question)
+                mendingParagraph = try await brain.mend(
+                    question: question,
+                    pickedChoiceIndex: index,
+                    bookTitle: session.bookTitle,
+                    chapterTitle: session.chapterTitle
+                )
             } catch {
                 logger.error("mend failed: \(error.localizedDescription, privacy: .public)")
                 mendingParagraph = "Something went wrong loading the explanation."

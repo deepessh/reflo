@@ -47,8 +47,11 @@ struct StubBrainServices: BrainServices {
         ]
     }
 
-    func mend(question: QuizQuestion) async throws -> String {
+    func mend(question: QuizQuestion, pickedChoiceIndex: Int, bookTitle: String, chapterTitle: String) async throws -> String {
         _ = question
+        _ = pickedChoiceIndex
+        _ = bookTitle
+        _ = chapterTitle
         return "The idea isn't about memorizing a fact — it's about seeing how the pieces connect. The book's example shows one concrete case; the chapter builds toward that connection step by step."
     }
 

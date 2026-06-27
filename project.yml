@@ -24,6 +24,10 @@ targets:
       - path: Reflo
       - path: prompts/questions.md
         buildPhase: resources
+      - path: prompts/second-example-prompt.md
+        buildPhase: resources
+      - path: prompts/mending.md
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.reflo.app
