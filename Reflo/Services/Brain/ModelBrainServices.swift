@@ -70,8 +70,92 @@ struct ModelBrainServices: BrainServices {
         try await fallback.mend(question: question)
     }
 
-    func secondExample(for question: QuizQuestion) async throws -> String {
-        try await fallback.secondExample(for: question)
+    func secondExample(for question: QuizQuestion, pickedChoiceIndex: Int) async throws -> String {
+        let correct = question.choices.indices.contains(question.correctIndex)
+            ? question.choices[question.correctIndex]
+            : ""
+        let picked = question.choices.indices.contains(pickedChoiceIndex)
+            ? question.choices[pickedChoiceIndex]
+            : "(no answer recorded)"
+        logger.debug("secondExample idea='\(question.idea, privacy: .public)' picked=\(pickedChoiceIndex, privacy: .public)")
+
+        guard let url = Bundle.main.url(forResource: "second-example-prompt", withExtension: "md"),
+              let template = try? String(contentsOf: url, encoding: .utf8)
+        else {
+            return try await fallback.secondExample(for: question, pickedChoiceIndex: pickedChoiceIndex)
+        }
+
+        let filled = template
+            .replacingOccurrences(of: "{{IDEA}}", with: question.idea)
+            .replacingOccurrences(of: "{{BOOK_EXAMPLE}}", with: question.bookExample)
+            .replacingOccurrences(of: "{{QUESTION}}", with: question.prompt)
+            .replacingOccurrences(of: "{{CORRECT_CHOICE}}", with: correct)
+            .replacingOccurrences(of: "{{USER_CHOICE}}", with: picked)
+
+        let messages = [
+            ChatMessage(
+                role: .system,
+                content: "You write a single second example for a reading companion, to sit beside the book's own example. Follow the instructions exactly and output only valid JSON."
+            ),
+            ChatMessage(role: .user, content: filled)
+        ]
+
+        let request = CompletionRequest(
+            messages: messages,
+            model: config.model,
+            temperature: config.temperature,
+            maxTokens: config.maxTokens,
+            responseFormat: config.useJSONResponseFormat ? .jsonObject : .text
+        )
+
+        struct MappingPair: Decodable {
+            let book: String
+            let new: String
+        }
+
+        struct SecondExampleDTO: Decodable {
+            let example: String
+            let bridge: String
+            let mapping: [MappingPair]?
+        }
+
+        func decodeSecondExample(from text: String) throws -> SecondExampleDTO {
+            let decoder = JSONDecoder()
+            for candidate in QuizResponseParser.jsonCandidates(from: text) {
+                if let dto = try? decoder.decode(SecondExampleDTO.self, from: Data(candidate.utf8)) {
+                    return dto
+                }
+            }
+            throw LanguageModelError.decoding(message: "Couldn't read the second example.")
+        }
+
+        var lastError: Error?
+        for attempt in 0 ..< 2 {
+            do {
+                let response = try await client.complete(request)
+
+                if response.finishReason == "length" {
+                    throw LanguageModelError.truncated
+                }
+
+                let dto = try decodeSecondExample(from: response.text)
+                if let mapping = dto.mapping, !mapping.isEmpty {
+                    logger.debug("secondExample mapping pairs=\(mapping.count, privacy: .public)")
+                }
+                return [dto.example, dto.bridge].joined(separator: "\n\n")
+            } catch {
+                lastError = error
+                if attempt == 0 && isRetryable(error) {
+                    logger.debug("secondExample attempt \(attempt, privacy: .public) failed (retrying): \(error.localizedDescription, privacy: .public)")
+                } else {
+                    logger.error("secondExample failed on attempt \(attempt, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                    break
+                }
+            }
+        }
+
+        logger.error("secondExample falling back to stub: \(lastError?.localizedDescription ?? "unknown", privacy: .public)")
+        return try await fallback.secondExample(for: question, pickedChoiceIndex: pickedChoiceIndex)
     }
 
     func reply(narration: String, chapterText: String) async throws -> NarrationReply {

@@ -6,4 +6,5 @@ struct QuizQuestion: Identifiable, Sendable, Hashable {
     let choices: [String]
     let correctIndex: Int
     let bookExample: String
+    let idea: String
 }

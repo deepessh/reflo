@@ -9,7 +9,7 @@ protocol MendingParagraphProviding: Sendable {
 }
 
 protocol SecondExampleProviding: Sendable {
-    func secondExample(for question: QuizQuestion) async throws -> String
+    func secondExample(for question: QuizQuestion, pickedChoiceIndex: Int) async throws -> String
 }
 
 protocol NarrationReplying: Sendable {

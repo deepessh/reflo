@@ -93,11 +93,12 @@ enum QuizResponseParser {
             prompt: question.stem,
             choices: choices,
             correctIndex: newCorrectIndex,
-            bookExample: question.bookExample
+            bookExample: question.bookExample,
+            idea: question.idea ?? question.stem
         )
     }
 
-    private static func jsonCandidates(from rawText: String) -> [String] {
+    static func jsonCandidates(from rawText: String) -> [String] {
         var seen = Set<String>()
         var candidates: [String] = []
 

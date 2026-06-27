@@ -23,6 +23,7 @@ final class QuizViewModel: ObservableObject {
 
     let session: ChapterSession
     private let brain: any BrainServices
+    private var selectedIndex: Int?
 
     init(session: ChapterSession, brain: any BrainServices) {
         self.session = session
@@ -59,6 +60,7 @@ final class QuizViewModel: ObservableObject {
             phase = .question
             await advanceOrFinish()
         } else {
+            selectedIndex = index
             isFetchingMending = true
             phase = .missed
             do {
@@ -72,10 +74,10 @@ final class QuizViewModel: ObservableObject {
     }
 
     func fetchSecondExample() async {
-        guard let question = currentQuestion else { return }
+        guard let question = currentQuestion, let pickedIndex = selectedIndex else { return }
         isFetchingExample = true
         do {
-            secondExample = try await brain.secondExample(for: question)
+            secondExample = try await brain.secondExample(for: question, pickedChoiceIndex: pickedIndex)
             showSecondExample = true
         } catch {
             logger.error("secondExample failed: \(error.localizedDescription, privacy: .public)")
@@ -93,6 +95,7 @@ final class QuizViewModel: ObservableObject {
         showSecondExample = false
         secondExample = ""
         mendingParagraph = ""
+        selectedIndex = nil
         if currentIndex + 1 < questions.count {
             currentIndex += 1
             phase = .question

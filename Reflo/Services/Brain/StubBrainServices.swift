@@ -15,7 +15,8 @@ struct StubBrainServices: BrainServices {
                     "An opposite that flips cause and effect"
                 ],
                 correctIndex: 1,
-                bookExample: "The book's own example from this chapter (placeholder)."
+                bookExample: "The book's own example from this chapter (placeholder).",
+                idea: "The chapter's main idea is the core connection the author makes between concepts."
             ),
             QuizQuestion(
                 id: "q2",
@@ -27,7 +28,8 @@ struct StubBrainServices: BrainServices {
                     "By dismissing other views without argument"
                 ],
                 correctIndex: 1,
-                bookExample: "Another example the book uses (placeholder)."
+                bookExample: "Another example the book uses (placeholder).",
+                idea: "The author supports the idea through a concrete example and reasoning."
             ),
             QuizQuestion(
                 id: "q3",
@@ -39,7 +41,8 @@ struct StubBrainServices: BrainServices {
                     "Explaining it to someone else"
                 ],
                 correctIndex: 0,
-                bookExample: "A practical case from the text (placeholder)."
+                bookExample: "A practical case from the text (placeholder).",
+                idea: "Misunderstanding the chapter means applying the idea too narrowly."
             )
         ]
     }
@@ -49,8 +52,9 @@ struct StubBrainServices: BrainServices {
         return "The idea isn't about memorizing a fact — it's about seeing how the pieces connect. The book's example shows one concrete case; the chapter builds toward that connection step by step."
     }
 
-    func secondExample(for question: QuizQuestion) async throws -> String {
+    func secondExample(for question: QuizQuestion, pickedChoiceIndex: Int) async throws -> String {
         _ = question
+        _ = pickedChoiceIndex
         return "Imagine explaining this at work: you'd use a different situation, but the same underlying pattern — that's what the book's example and this one share."
     }
 
