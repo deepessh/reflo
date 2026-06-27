@@ -1,5 +1,7 @@
 import Foundation
 
+private let logger = AppLog.library
+
 enum LibraryStoreError: Error, LocalizedError {
     case copyFailed
     case accessDenied
@@ -32,16 +34,19 @@ actor LibraryStore {
             at: booksDirectory,
             includingPropertiesForKeys: nil
         )
-        return urls
+        let books: [Book] = urls
             .filter { $0.pathExtension.lowercased() == "epub" }
             .map { url in
                 let id = url.deletingPathExtension().lastPathComponent
                 return Book(id: id, fileURL: url)
             }
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        logger.debug("listBooks found \(books.count, privacy: .public) epub(s) in \(self.booksDirectory.lastPathComponent, privacy: .public)")
+        return books
     }
 
     func importBook(from sourceURL: URL) throws -> Book {
+        logger.debug("importBook from '\(sourceURL.lastPathComponent, privacy: .public)'")
         try ensureDirectoryExists()
 
         let didAccess = sourceURL.startAccessingSecurityScopedResource()
@@ -52,6 +57,7 @@ actor LibraryStore {
         }
 
         guard didAccess || sourceURL.isFileURL else {
+            logger.error("importBook access denied for '\(sourceURL.lastPathComponent, privacy: .public)'")
             throw LibraryStoreError.accessDenied
         }
 
@@ -69,10 +75,12 @@ actor LibraryStore {
             }
             try fileManager.copyItem(at: sourceURL, to: destinationURL)
         } catch {
+            logger.error("importBook copy failed: \(error.localizedDescription, privacy: .public)")
             throw LibraryStoreError.copyFailed
         }
 
         let id = destinationURL.deletingPathExtension().lastPathComponent
+        logger.debug("importBook copied as id='\(id, privacy: .public)'")
         return Book(id: id, fileURL: destinationURL)
     }
 

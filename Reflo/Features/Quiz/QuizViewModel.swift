@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let logger = AppLog.quiz
+
 @MainActor
 final class QuizViewModel: ObservableObject {
     enum Phase: Equatable {
@@ -33,6 +35,7 @@ final class QuizViewModel: ObservableObject {
     }
 
     func loadQuiz() async {
+        logger.debug("loadQuiz chapter='\(self.session.chapterTitle, privacy: .public)'")
         phase = .loading
         do {
             questions = try await brain.makeQuiz(
@@ -41,14 +44,18 @@ final class QuizViewModel: ObservableObject {
             )
             currentIndex = 0
             phase = questions.isEmpty ? .failed("No questions available.") : .question
+            logger.debug("loadQuiz loaded \(self.questions.count, privacy: .public) questions")
         } catch {
+            logger.error("loadQuiz failed: \(error.localizedDescription, privacy: .public)")
             phase = .failed(error.localizedDescription)
         }
     }
 
     func selectChoice(at index: Int) async {
         guard let question = currentQuestion else { return }
-        if index == question.correctIndex {
+        let correct = index == question.correctIndex
+        logger.debug("selectChoice q\(self.currentIndex, privacy: .public) index=\(index, privacy: .public) correct=\(correct, privacy: .public)")
+        if correct {
             phase = .question
             await advanceOrFinish()
         } else {
@@ -57,6 +64,7 @@ final class QuizViewModel: ObservableObject {
             do {
                 mendingParagraph = try await brain.mend(question: question)
             } catch {
+                logger.error("mend failed: \(error.localizedDescription, privacy: .public)")
                 mendingParagraph = "Something went wrong loading the explanation."
             }
             isFetchingMending = false
@@ -70,6 +78,7 @@ final class QuizViewModel: ObservableObject {
             secondExample = try await brain.secondExample(for: question)
             showSecondExample = true
         } catch {
+            logger.error("secondExample failed: \(error.localizedDescription, privacy: .public)")
             secondExample = "Couldn't load another example."
             showSecondExample = true
         }

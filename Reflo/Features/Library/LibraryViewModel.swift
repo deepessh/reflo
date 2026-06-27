@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let logger = AppLog.library
+
 @MainActor
 final class LibraryViewModel: ObservableObject {
     @Published private(set) var books: [Book] = []
@@ -17,6 +19,7 @@ final class LibraryViewModel: ObservableObject {
     }
 
     func loadBooks() async {
+        logger.debug("loadBooks")
         loadState = .loading
         do {
             let loaded = try await libraryStore.listBooks()
@@ -26,11 +29,13 @@ final class LibraryViewModel: ObservableObject {
                 await loadTitle(for: book)
             }
         } catch {
+            logger.error("loadBooks failed: \(error.localizedDescription, privacy: .public)")
             loadState = .failed(error.localizedDescription)
         }
     }
 
     func importBook(from url: URL) async {
+        logger.debug("importBook from '\(url.lastPathComponent, privacy: .public)'")
         isImporting = true
         importError = nil
         defer { isImporting = false }
@@ -40,6 +45,7 @@ final class LibraryViewModel: ObservableObject {
             await loadBooks()
             await loadTitle(for: book)
         } catch {
+            logger.error("importBook failed: \(error.localizedDescription, privacy: .public)")
             importError = error.localizedDescription
         }
     }

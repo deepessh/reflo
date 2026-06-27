@@ -1,5 +1,7 @@
 import Foundation
 
+private let logger = AppLog.brain
+
 struct ModelBrainServices: BrainServices {
     private let client: any LanguageModelClient
     private let config: LLMConfiguration
@@ -19,6 +21,8 @@ struct ModelBrainServices: BrainServices {
     }
 
     func makeQuiz(bookTitle: String, chapterText: String) async throws -> [QuizQuestion] {
+        logger.debug("makeQuiz book='\(bookTitle, privacy: .public)' chapterChars=\(chapterText.count, privacy: .public) numQuestions=\(config.numQuestions, privacy: .public)")
+
         let messages = promptBuilder.messages(
             bookTitle: bookTitle,
             chapterText: chapterText,
@@ -43,16 +47,22 @@ struct ModelBrainServices: BrainServices {
                     throw LanguageModelError.truncated
                 }
 
-                return try QuizResponseParser.parseQuestions(from: response.text)
+                let questions = try QuizResponseParser.parseQuestions(from: response.text)
+                logger.debug("makeQuiz parsed \(questions.count, privacy: .public) questions on attempt \(attempt, privacy: .public)")
+                return questions
             } catch {
                 lastError = error
                 let shouldRetry = attempt == 0 && isRetryable(error)
-                if !shouldRetry {
+                if shouldRetry {
+                    logger.debug("makeQuiz attempt \(attempt, privacy: .public) failed (retrying): \(error.localizedDescription, privacy: .public)")
+                } else {
+                    logger.error("makeQuiz failed on attempt \(attempt, privacy: .public): \(error.localizedDescription, privacy: .public)")
                     throw error
                 }
             }
         }
 
+        logger.error("makeQuiz exhausted retries: \(lastError?.localizedDescription ?? "unknown", privacy: .public)")
         throw lastError ?? LanguageModelError.emptyResponse
     }
 

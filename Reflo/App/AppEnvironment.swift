@@ -11,6 +11,7 @@ struct AppEnvironment {
         guard let config = LLMConfiguration.load(),
               let promptBuilder = try? QuizPromptBuilder(bundle: .main, resourceName: "questions", fileExtension: "md")
         else {
+            AppLog.app.notice("LLM config or prompt unavailable; using StubBrainServices.")
             return AppEnvironment(
                 libraryStore: LibraryStore(),
                 epubBookCache: EPUBBookCache(),
@@ -18,6 +19,7 @@ struct AppEnvironment {
             )
         }
 
+        AppLog.app.debug("Configured ModelBrainServices model=\(config.model, privacy: .public)")
         let client = OpenAICompatibleClient(configuration: config)
         let brain = ModelBrainServices(
             client: client,

@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let logger = AppLog.library
+
 @MainActor
 final class ChaptersViewModel: ObservableObject {
     @Published private(set) var loadState: LoadState<[Chapter]> = .idle
@@ -18,9 +20,11 @@ final class ChaptersViewModel: ObservableObject {
     }
 
     func load() async {
+        logger.debug("ChaptersViewModel.load book='\(self.bookID, privacy: .public)'")
         loadState = .loading
         do {
             guard let book = try await libraryStore.book(for: bookID) else {
+                logger.error("ChaptersViewModel.load book missing '\(self.bookID, privacy: .public)'")
                 loadState = .failed("Book file is missing.")
                 return
             }
@@ -28,29 +32,29 @@ final class ChaptersViewModel: ObservableObject {
             let chapters = try await epubBookCache.chapters(for: book)
             loadState = .loaded(chapters)
         } catch {
+            logger.error("ChaptersViewModel.load failed: \(error.localizedDescription, privacy: .public)")
             loadState = .failed(error.localizedDescription)
         }
     }
 
     func startQuiz(for chapter: Chapter) async -> ChapterSession? {
+        logger.debug("startQuiz chapter='\(chapter.title, privacy: .public)'")
         rowErrors[chapter.id] = nil
         rowStates[chapter.id] = .loading
 
         do {
             guard let book = try await libraryStore.book(for: bookID) else {
+                logger.error("startQuiz book missing '\(self.bookID, privacy: .public)'")
                 rowStates[chapter.id] = .failed("Book missing")
                 rowErrors[chapter.id] = "Book file is missing."
                 return nil
             }
 
             let text = try await epubBookCache.chapterText(for: book, chapter: chapter)
-
-            #if DEBUG
-            let preview = String(text.prefix(200))
-            print("[Reflo] Extracted \(text.count) chars for '\(chapter.title)': \(preview)")
-            #endif
+            logger.debug("startQuiz extracted \(text.count, privacy: .public) chars for '\(chapter.title, privacy: .public)'")
 
             guard !text.isEmpty else {
+                logger.error("startQuiz empty text for '\(chapter.title, privacy: .public)'")
                 rowStates[chapter.id] = .failed("Empty")
                 rowErrors[chapter.id] = "Couldn't read this chapter."
                 return nil
@@ -65,6 +69,7 @@ final class ChaptersViewModel: ObservableObject {
                 chapterText: text
             )
         } catch {
+            logger.error("startQuiz failed for '\(chapter.title, privacy: .public)': \(error.localizedDescription, privacy: .public)")
             rowStates[chapter.id] = .failed(error.localizedDescription)
             rowErrors[chapter.id] = "Couldn't read this chapter."
             return nil

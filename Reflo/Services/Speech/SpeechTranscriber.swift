@@ -2,6 +2,8 @@ import AVFoundation
 import Foundation
 import Speech
 
+private let logger = AppLog.speech
+
 enum SpeechTranscriberError: Error, LocalizedError {
     case microphoneDenied
     case speechDenied
@@ -48,9 +50,11 @@ final class SpeechTranscriber: ObservableObject {
         permissionMessage = "Reflo listens so you can explain what you learned out loud. Audio stays on your phone."
 
         let micGranted = await AVAudioApplication.requestRecordPermission()
+        logger.debug("Microphone permission granted=\(micGranted, privacy: .public)")
         guard micGranted else { throw SpeechTranscriberError.microphoneDenied }
 
         let speechStatus = await Self.requestSpeechAuthorization()
+        logger.debug("Speech authorization status=\(speechStatus.rawValue, privacy: .public)")
         guard speechStatus == .authorized else { throw SpeechTranscriberError.speechDenied }
     }
 
@@ -63,8 +67,14 @@ final class SpeechTranscriber: ObservableObject {
     }
 
     func start() throws {
-        guard isAvailable else { throw SpeechTranscriberError.unavailable }
-        guard !isRecording else { return }
+        guard isAvailable else {
+            logger.error("start() called while recognizer unavailable.")
+            throw SpeechTranscriberError.unavailable
+        }
+        guard !isRecording else {
+            logger.debug("start() ignored; already recording.")
+            return
+        }
 
         committedText = ""
         partialText = ""
@@ -84,7 +94,8 @@ final class SpeechTranscriber: ObservableObject {
                 if let result {
                     self.handleRecognitionResult(result)
                 }
-                if error != nil {
+                if let error {
+                    logger.error("Recognition error: \(error.localizedDescription, privacy: .public)")
                     self.stopInternal()
                 }
             }
@@ -92,12 +103,15 @@ final class SpeechTranscriber: ObservableObject {
 
         try worker.start()
         isRecording = true
+        logger.debug("Recording started.")
     }
 
     func stop() -> String {
         let result = partialText
         stopInternal()
-        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = result.trimmingCharacters(in: .whitespacesAndNewlines)
+        logger.debug("Recording stopped; transcript \(trimmed.count, privacy: .public) chars.")
+        return trimmed
     }
 
     private func handleRecognitionResult(_ result: SFSpeechRecognitionResult) {

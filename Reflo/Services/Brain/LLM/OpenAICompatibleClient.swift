@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let logger = Logger(subsystem: "com.reflo.app", category: "OpenAICompatibleClient")
+private let logger = AppLog.llm
 
 struct OpenAICompatibleClient: LanguageModelClient {
     private let baseURL: URL
@@ -30,17 +30,25 @@ struct OpenAICompatibleClient: LanguageModelClient {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.httpBody = try JSONEncoder().encode(makeBody(for: request))
 
+        logger.debug("POST \(url.absoluteString, privacy: .public) model=\(request.model, privacy: .public) messages=\(request.messages.count, privacy: .public) maxTokens=\(request.maxTokens, privacy: .public)")
+
+        let started = Date()
         let data: Data
         let response: URLResponse
         do {
             (data, response) = try await session.data(for: urlRequest)
         } catch {
+            logger.error("Network error: \(error.localizedDescription, privacy: .public)")
             throw LanguageModelError.network(message: error.localizedDescription)
         }
 
         guard let http = response as? HTTPURLResponse else {
+            logger.error("Invalid response type (not HTTPURLResponse).")
             throw LanguageModelError.network(message: "Invalid response type.")
         }
+
+        let elapsedMS = Date().timeIntervalSince(started) * 1000
+        logger.debug("HTTP \(http.statusCode, privacy: .public) in \(elapsedMS, format: .fixed(precision: 0), privacy: .public)ms, \(data.count, privacy: .public) bytes")
 
         guard (200 ... 299).contains(http.statusCode) else {
             let body = String(data: data, encoding: .utf8) ?? ""
@@ -50,14 +58,17 @@ struct OpenAICompatibleClient: LanguageModelClient {
 
         let decoded = try JSONDecoder().decode(ChatCompletionResponse.self, from: data)
         guard let choice = decoded.choices.first else {
+            logger.error("Decoded response had no choices.")
             throw LanguageModelError.emptyResponse
         }
 
         let text = choice.message.content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !text.isEmpty else {
+            logger.error("Choice content was empty.")
             throw LanguageModelError.emptyResponse
         }
 
+        logger.debug("Completion ok: \(text.count, privacy: .public) chars, finishReason=\(choice.finishReason ?? "nil", privacy: .public)")
         return CompletionResponse(text: text, finishReason: choice.finishReason)
     }
 

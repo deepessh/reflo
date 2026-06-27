@@ -1,6 +1,8 @@
 import AVFoundation
 import Foundation
 
+private let logger = AppLog.speech
+
 final class AudioCaptureWorker: @unchecked Sendable {
     private let engine = AVAudioEngine()
     private var isRunning = false
@@ -24,6 +26,7 @@ final class AudioCaptureWorker: @unchecked Sendable {
         engine.prepare()
         try engine.start()
         isRunning = true
+        logger.debug("Audio engine started; format \(format.sampleRate, privacy: .public)Hz \(format.channelCount, privacy: .public)ch")
     }
 
     func stop() {
@@ -32,5 +35,6 @@ final class AudioCaptureWorker: @unchecked Sendable {
         engine.stop()
         isRunning = false
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        logger.debug("Audio engine stopped.")
     }
 }

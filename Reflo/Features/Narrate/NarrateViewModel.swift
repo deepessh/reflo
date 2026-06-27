@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let logger = AppLog.narrate
+
 @MainActor
 final class NarrateViewModel: ObservableObject {
     @Published private(set) var permissionState: LoadState<Bool> = .idle
@@ -31,6 +33,7 @@ final class NarrateViewModel: ObservableObject {
     }
 
     func prepare() async {
+        logger.debug("prepare available=\(self.transcriber.isAvailable, privacy: .public)")
         guard transcriber.isAvailable else {
             permissionState = .failed("Speech recognition requires a device.")
             return
@@ -40,6 +43,7 @@ final class NarrateViewModel: ObservableObject {
             try await transcriber.requestPermissions()
             permissionState = .loaded(true)
         } catch {
+            logger.error("prepare permissions failed: \(error.localizedDescription, privacy: .public)")
             permissionState = .failed(error.localizedDescription)
         }
     }
@@ -48,10 +52,13 @@ final class NarrateViewModel: ObservableObject {
         errorMessage = nil
         if transcriber.isRecording {
             transcript = transcriber.stop()
+            logger.debug("toggleRecording stopped; transcript \(self.transcript.count, privacy: .public) chars")
         } else {
             do {
                 try transcriber.start()
+                logger.debug("toggleRecording started")
             } catch {
+                logger.error("toggleRecording start failed: \(error.localizedDescription, privacy: .public)")
                 errorMessage = error.localizedDescription
             }
         }
