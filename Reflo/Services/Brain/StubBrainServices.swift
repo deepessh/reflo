@@ -1,7 +1,8 @@
 import Foundation
 
 struct StubBrainServices: BrainServices {
-    func makeQuiz(chapterText: String) async throws -> [QuizQuestion] {
+    func makeQuiz(bookTitle: String, chapterText: String) async throws -> [QuizQuestion] {
+        _ = bookTitle
         _ = chapterText
         return [
             QuizQuestion(

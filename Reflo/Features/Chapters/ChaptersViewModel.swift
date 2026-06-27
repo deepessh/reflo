@@ -59,6 +59,7 @@ final class ChaptersViewModel: ObservableObject {
             rowStates[chapter.id] = .loaded(text)
             return ChapterSession(
                 bookID: bookID,
+                bookTitle: bookTitle,
                 chapterID: chapter.id,
                 chapterTitle: chapter.title,
                 chapterText: text

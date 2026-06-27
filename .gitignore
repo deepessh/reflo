@@ -5,6 +5,10 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 .DS_Store
+.env
+
+# Local LLM config (copy from LLMConfig.example.plist)
+Reflo/Resources/LLMConfig.plist
 
 # Local-only fixture EPUBs (sample.epub is committed)
 Fixtures/*.epub

@@ -35,7 +35,10 @@ final class QuizViewModel: ObservableObject {
     func loadQuiz() async {
         phase = .loading
         do {
-            questions = try await brain.makeQuiz(chapterText: session.chapterText)
+            questions = try await brain.makeQuiz(
+                bookTitle: session.bookTitle,
+                chapterText: session.chapterText
+            )
             currentIndex = 0
             phase = questions.isEmpty ? .failed("No questions available.") : .question
         } catch {

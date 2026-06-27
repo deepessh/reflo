@@ -22,6 +22,8 @@ targets:
     platform: iOS
     sources:
       - path: Reflo
+      - path: prompts/questions.md
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.reflo.app
@@ -51,6 +53,8 @@ targets:
     platform: iOS
     sources:
       - path: RefloTests
+      - path: prompts/questions.md
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.reflo.app.tests

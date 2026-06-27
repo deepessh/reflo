@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>apiKey</key>
+	<string>YOUR_SK_DO_MODEL_ACCESS_KEY</string>
+	<key>baseURL</key>
+	<string>https://inference.do-ai.run/v1</string>
+	<key>maxTokens</key>
+	<integer>8192</integer>
+	<key>model</key>
+	<string>anthropic-claude-4.6-sonnet</string>
+	<key>numQuestions</key>
+	<integer>5</integer>
+	<key>temperature</key>
+	<real>0.7</real>
+	<key>useJSONResponseFormat</key>
+	<false/>
+</dict>
+</plist>

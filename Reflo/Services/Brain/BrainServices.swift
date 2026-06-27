@@ -1,7 +1,7 @@
 import Foundation
 
 protocol QuizGenerating: Sendable {
-    func makeQuiz(chapterText: String) async throws -> [QuizQuestion]
+    func makeQuiz(bookTitle: String, chapterText: String) async throws -> [QuizQuestion]
 }
 
 protocol MendingParagraphProviding: Sendable {
