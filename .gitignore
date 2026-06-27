@@ -1,0 +1,11 @@
+*.xcodeproj
+DerivedData/
+.build/
+.swiftpm/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+
+# Local-only fixture EPUBs (sample.epub is committed)
+Fixtures/*.epub
+!Fixtures/sample.epub

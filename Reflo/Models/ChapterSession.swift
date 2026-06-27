@@ -1,0 +1,8 @@
+import Foundation
+
+struct ChapterSession: Hashable, Sendable {
+    let bookID: String
+    let chapterID: String
+    let chapterTitle: String
+    let chapterText: String
+}
