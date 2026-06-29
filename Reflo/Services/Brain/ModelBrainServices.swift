@@ -240,7 +240,63 @@ struct ModelBrainServices: BrainServices {
     }
 
     func reply(narration: String, chapterText: String) async throws -> NarrationReply {
-        try await fallback.reply(narration: narration, chapterText: chapterText)
+        logger.debug("reply narrationChars=\(narration.count, privacy: .public) chapterChars=\(chapterText.count, privacy: .public)")
+
+        guard let url = Bundle.main.url(forResource: "narration-reply", withExtension: "md"),
+              let template = try? String(contentsOf: url, encoding: .utf8)
+        else {
+            return try await fallback.reply(narration: narration, chapterText: chapterText)
+        }
+
+        let filled = template
+            .replacingOccurrences(of: "{{CHAPTER_TEXT}}", with: chapterText)
+            .replacingOccurrences(of: "{{NARRATION_TRANSCRIPT}}", with: narration)
+
+        let messages = [
+            ChatMessage(
+                role: .system,
+                content: "You are the voice of a reading companion. Follow the instructions exactly and return only the spoken reply, no preamble."
+            ),
+            ChatMessage(role: .user, content: filled)
+        ]
+
+        let request = CompletionRequest(
+            messages: messages,
+            model: config.model,
+            temperature: config.temperature,
+            maxTokens: config.maxTokens,
+            responseFormat: .text
+        )
+
+        var lastError: Error?
+        for attempt in 0 ..< 2 {
+            do {
+                let response = try await client.complete(request)
+
+                if response.finishReason == "length" {
+                    throw LanguageModelError.truncated
+                }
+
+                let text = response.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if text.isEmpty {
+                    throw LanguageModelError.emptyResponse
+                }
+
+                logger.debug("reply received \(text.count, privacy: .public) chars on attempt \(attempt, privacy: .public)")
+                return NarrationReply(text: text)
+            } catch {
+                lastError = error
+                if attempt == 0 && isRetryable(error) {
+                    logger.debug("reply attempt \(attempt, privacy: .public) failed (retrying): \(error.localizedDescription, privacy: .public)")
+                } else {
+                    logger.error("reply failed on attempt \(attempt, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                    break
+                }
+            }
+        }
+
+        logger.error("reply falling back to stub: \(lastError?.localizedDescription ?? "unknown", privacy: .public)")
+        return try await fallback.reply(narration: narration, chapterText: chapterText)
     }
 
     private func isRetryable(_ error: Error) -> Bool {

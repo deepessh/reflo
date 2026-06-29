@@ -28,6 +28,8 @@ targets:
         buildPhase: resources
       - path: prompts/mending.md
         buildPhase: resources
+      - path: prompts/narration-reply.md
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.reflo.app
