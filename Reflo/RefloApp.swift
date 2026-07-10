@@ -34,7 +34,31 @@ struct RefloApp: App {
                 viewModel: ChaptersViewModel(
                     bookID: bookID,
                     libraryStore: environment.libraryStore,
-                    epubBookCache: environment.epubBookCache
+                    epubBookCache: environment.epubBookCache,
+                    auditLogStore: environment.auditLogStore
+                )
+            )
+        case .quizzes:
+            QuizzesView(
+                path: $path,
+                viewModel: QuizzesViewModel(store: environment.auditLogStore)
+            )
+        case .quizFlow(let launch):
+            QuizAttemptFlowView(
+                path: $path,
+                viewModel: QuizAttemptFlowViewModel(
+                    launch: launch,
+                    brain: environment.brain,
+                    lifecycle: QuizDraftLifecycle(store: environment.auditLogStore),
+                    transcriber: speechTranscriber
+                )
+            )
+        case .attemptDetail(let id):
+            AttemptDetailView(
+                viewModel: AttemptDetailViewModel(
+                    store: environment.auditLogStore,
+                    recordID: id,
+                    isDraft: false
                 )
             )
         case .quiz(let session):

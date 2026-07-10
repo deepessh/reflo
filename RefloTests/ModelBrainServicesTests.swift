@@ -30,8 +30,8 @@ final class QuizResponseParserTests: XCTestCase {
               "book_example": "The author uses {braces} in the example.",
               "stem": "What is the main idea?",
               "options": [
-                { "text": "Correct", "correct": true },
-                { "text": "Wrong {not json}", "correct": false }
+                { "text": "Correct", "correct": true, "trap_type": null },
+                { "text": "Wrong {not json}", "correct": false, "trap_type": "false_belief" }
               ]
             }
           ]
@@ -79,6 +79,33 @@ final class QuizResponseParserTests: XCTestCase {
         XCTAssertThrowsError(try QuizResponseParser.parseQuestions(from: json))
     }
 
+    func testPreservesTrapTypesThroughShuffle() throws {
+        let questions = try QuizResponseParser.parseQuestions(from: Self.sampleJSON)
+        let question = questions[0]
+        let traps = question.options.compactMap(\.trapType)
+        XCTAssertEqual(Set(traps), [.falseBelief, .flawedMentalModel, .ontologicalMiscategorization])
+        XCTAssertEqual(question.options.filter(\.isCorrect).count, 1)
+        XCTAssertNil(question.options.first(where: \.isCorrect)?.trapType)
+    }
+
+    func testRejectsDistractorMissingTrapType() {
+        let json = """
+        {
+          "questions": [
+            {
+              "book_example": "Example",
+              "stem": "Question?",
+              "options": [
+                { "text": "A", "correct": true, "trap_type": null },
+                { "text": "B", "correct": false }
+              ]
+            }
+          ]
+        }
+        """
+        XCTAssertThrowsError(try QuizResponseParser.parseQuestions(from: json))
+    }
+
     func testRejectsInvalidJSON() {
         XCTAssertThrowsError(try QuizResponseParser.parseQuestions(from: "{ not valid json"))
     }
@@ -101,28 +128,28 @@ final class QuizResponseParserTests: XCTestCase {
               "text": "More lanes change how people drive until congestion returns.",
               "correct": true,
               "misconception": null,
-              "depth": null,
+              "trap_type": null,
               "note": "Right on the merits."
             },
             {
               "text": "The widening simply was not big enough.",
               "correct": false,
               "misconception": "Push harder on the obvious lever.",
-              "depth": "false_belief",
+              "trap_type": "false_belief",
               "note": "Tempting but shallow."
             },
             {
               "text": "Population growth alone caused the traffic.",
               "correct": false,
               "misconception": "Single outside cause.",
-              "depth": "flawed_model",
+              "trap_type": "flawed_mental_model",
               "note": "Coherent but wrong model."
             },
             {
               "text": "Congestion is a fixed property of the road.",
               "correct": false,
               "misconception": "Relationship mistaken for a thing.",
-              "depth": "wrong_category",
+              "trap_type": "ontological_miscategorization",
               "note": "Category error."
             }
           ]

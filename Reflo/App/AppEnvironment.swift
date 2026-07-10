@@ -6,6 +6,7 @@ struct AppEnvironment {
     let brain: any BrainServices
     let llmSettingsRepository: LLMSettingsRepository
     let modelCatalogClient: ModelCatalogClient
+    let auditLogStore: FileQuizAuditStore
 
     static let live: AppEnvironment = {
         let repository = LLMSettingsRepository()
@@ -27,7 +28,8 @@ struct AppEnvironment {
             epubBookCache: EPUBBookCache(),
             brain: brain,
             llmSettingsRepository: repository,
-            modelCatalogClient: catalogClient
+            modelCatalogClient: catalogClient,
+            auditLogStore: FileQuizAuditStore()
         )
     }()
 }

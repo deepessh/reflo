@@ -34,7 +34,17 @@ struct OptionDTO: Decodable {
     let correct: Bool
     let misconception: String?
     let depth: String?
+    let trapType: String?
     let note: String?
+
+    enum CodingKeys: String, CodingKey {
+        case text
+        case correct
+        case misconception
+        case depth
+        case trapType = "trap_type"
+        case note
+    }
 }
 
 enum QuizResponseParser {
@@ -76,26 +86,50 @@ enum QuizResponseParser {
         }
 
         let correctIndices = question.options.enumerated().filter(\.element.correct).map(\.offset)
-        guard correctIndices.count == 1, let correctIndexBeforeShuffle = correctIndices.first else {
+        guard correctIndices.count == 1 else {
             throw LanguageModelError.decoding(message: "Question \(index + 1) must have exactly one correct option.")
         }
 
         var indexedOptions = question.options.enumerated().map { ($0.offset, $0.element) }
         indexedOptions.shuffle()
 
-        let choices = indexedOptions.map(\.1.text)
-        guard let newCorrectIndex = indexedOptions.firstIndex(where: { $0.0 == correctIndexBeforeShuffle }) else {
-            throw LanguageModelError.decoding(message: "Question \(index + 1) lost its correct option during shuffle.")
+        let mappedOptions: [QuizQuestionOption] = try indexedOptions.map { _, option in
+            try mapOption(option, questionIndex: index)
         }
 
         return QuizQuestion(
             id: "q\(index + 1)",
             prompt: question.stem,
-            choices: choices,
-            correctIndex: newCorrectIndex,
+            options: mappedOptions,
             bookExample: question.bookExample,
             idea: question.idea ?? question.stem
         )
+    }
+
+    private static func mapOption(_ option: OptionDTO, questionIndex: Int) throws -> QuizQuestionOption {
+        if option.correct {
+            if let trapType = option.trapType, !trapType.isEmpty {
+                throw LanguageModelError.decoding(message: "Question \(questionIndex + 1) correct option must have trap_type null.")
+            }
+            return QuizQuestionOption(text: option.text, isCorrect: true, trapType: nil)
+        }
+
+        let trap: TrapType
+        if let trapType = option.trapType {
+            guard let parsed = try TrapType.fromWireValue(trapType) else {
+                throw LanguageModelError.decoding(message: "Question \(questionIndex + 1) has invalid trap_type '\(trapType)'.")
+            }
+            trap = parsed
+        } else if let depth = option.depth {
+            guard let legacyTrap = TrapType.fromLegacyDepth(depth) else {
+                throw LanguageModelError.decoding(message: "Question \(questionIndex + 1) has invalid depth '\(depth)'.")
+            }
+            trap = legacyTrap
+        } else {
+            throw LanguageModelError.decoding(message: "Question \(questionIndex + 1) distractor is missing trap_type.")
+        }
+
+        return QuizQuestionOption(text: option.text, isCorrect: false, trapType: trap)
     }
 
     static func jsonCandidates(from rawText: String) -> [String] {

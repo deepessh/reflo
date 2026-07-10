@@ -216,7 +216,7 @@ final class ConfigurableBrainServicesTests: XCTestCase {
         )
 
         let json = """
-        {"questions":[{"book_example":"Example","stem":"Which best explains the loop?","options":[{"text":"Correct","correct":true},{"text":"Wrong","correct":false},{"text":"Wrong2","correct":false},{"text":"Wrong3","correct":false}]}]}
+        {"questions":[{"book_example":"Example","stem":"Which best explains the loop?","options":[{"text":"Correct","correct":true,"trap_type":null},{"text":"Wrong","correct":false,"trap_type":"false_belief"},{"text":"Wrong2","correct":false,"trap_type":"flawed_mental_model"},{"text":"Wrong3","correct":false,"trap_type":"unclassified"}]}]}
         """
         let transport = FakeHTTPTransport(responses: [
             (HTTPResponse(statusCode: 200, body: Self.chatCompletionBody(json)), nil)

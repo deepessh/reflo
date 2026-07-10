@@ -16,7 +16,13 @@ struct StubBrainServices: BrainServices {
                 ],
                 correctIndex: 1,
                 bookExample: "The book's own example from this chapter (placeholder).",
-                idea: "The chapter's main idea is the core connection the author makes between concepts."
+                idea: "The chapter's main idea is the core connection the author makes between concepts.",
+                trapTypes: [
+                    .overturnedCommonSenseBelief,
+                    nil,
+                    .falseBelief,
+                    .flawedMentalModel
+                ]
             ),
             QuizQuestion(
                 id: "q2",
@@ -29,7 +35,13 @@ struct StubBrainServices: BrainServices {
                 ],
                 correctIndex: 1,
                 bookExample: "Another example the book uses (placeholder).",
-                idea: "The author supports the idea through a concrete example and reasoning."
+                idea: "The author supports the idea through a concrete example and reasoning.",
+                trapTypes: [
+                    .falseBelief,
+                    nil,
+                    .unclassified,
+                    .flawedMentalModel
+                ]
             ),
             QuizQuestion(
                 id: "q3",
@@ -42,7 +54,13 @@ struct StubBrainServices: BrainServices {
                 ],
                 correctIndex: 0,
                 bookExample: "A practical case from the text (placeholder).",
-                idea: "Misunderstanding the chapter means applying the idea too narrowly."
+                idea: "Misunderstanding the chapter means applying the idea too narrowly.",
+                trapTypes: [
+                    nil,
+                    .ontologicalMiscategorization,
+                    .flawedMentalModel,
+                    .falseBelief
+                ]
             )
         ]
     }

@@ -58,7 +58,12 @@ struct LibraryView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                addButton
+                HStack {
+                    NavigationLink(value: AppRoute.quizzes) {
+                        Label("Quizzes", systemImage: "questionmark.circle")
+                    }
+                    addButton
+                }
             }
         }
         .sheet(isPresented: $isSettingsPresented) {

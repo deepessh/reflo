@@ -122,14 +122,14 @@ Output ONLY valid JSON, no preamble, no markdown fences, in exactly this shape:
           "text": "the option as the reader sees it",
           "correct": true,
           "misconception": null,
-          "depth": null,
+          "trap_type": null,
           "note": "why this is right on the merits"
         },
         {
           "text": "the option as the reader sees it",
           "correct": false,
           "misconception": "the specific wrong belief this trap is built from",
-          "depth": "false_belief | flawed_model | wrong_category",
+          "trap_type": "false_belief | flawed_mental_model | ontological_miscategorization | overturned_common_sense_belief | unclassified",
           "note": "why it's tempting, and why it's actually wrong"
         }
       ]

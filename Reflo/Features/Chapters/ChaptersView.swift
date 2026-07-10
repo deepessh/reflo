@@ -28,10 +28,17 @@ struct ChaptersView: View {
                         ChapterRow(
                             chapter: chapter,
                             isLoading: viewModel.rowStates[chapter.id]?.isLoading ?? false,
-                            errorMessage: viewModel.rowErrors[chapter.id]
-                        ) {
-                            await startQuiz(for: chapter)
-                        }
+                            errorMessage: viewModel.rowErrors[chapter.id],
+                            draftCount: viewModel.chapterDrafts[chapter.id]?.count ?? 0,
+                            attemptCount: viewModel.chapterAttempts[chapter.id]?.count ?? 0,
+                            canResume: viewModel.latestDraft(for: chapter.id) != nil,
+                            onStartNew: {
+                                await startNewQuiz(for: chapter)
+                            },
+                            onResume: {
+                                resumeQuiz(for: chapter)
+                            }
+                        )
                     }
                 }
             case .failed(let message):
@@ -47,11 +54,20 @@ struct ChaptersView: View {
         .task {
             await viewModel.load()
         }
+        .onAppear {
+            Task { await viewModel.refreshQuizHistory() }
+        }
     }
 
-    private func startQuiz(for chapter: Chapter) async {
-        if let session = await viewModel.startQuiz(for: chapter) {
-            path.append(AppRoute.quiz(session))
+    private func startNewQuiz(for chapter: Chapter) async {
+        if let launch = await viewModel.startNewQuiz(for: chapter) {
+            path.append(AppRoute.quizFlow(launch))
+        }
+    }
+
+    private func resumeQuiz(for chapter: Chapter) {
+        if let launch = viewModel.resumeLatest(for: chapter) {
+            path.append(AppRoute.quizFlow(launch))
         }
     }
 }
@@ -60,7 +76,11 @@ private struct ChapterRow: View {
     let chapter: Chapter
     let isLoading: Bool
     let errorMessage: String?
-    let onStartQuiz: () async -> Void
+    let draftCount: Int
+    let attemptCount: Int
+    let canResume: Bool
+    let onStartNew: () async -> Void
+    let onResume: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -69,15 +89,28 @@ private struct ChapterRow: View {
                 .padding(.leading, CGFloat(chapter.depth) * 16)
 
             HStack {
-                Button(isLoading ? "Loading…" : "Start Quiz") {
-                    Task { await onStartQuiz() }
+                Button(isLoading ? "Loading…" : "Start New") {
+                    Task { await onStartNew() }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isLoading)
 
+                if canResume {
+                    Button("Resume") {
+                        onResume()
+                    }
+                    .buttonStyle(.bordered)
+                }
+
                 if isLoading {
                     ProgressView()
                 }
+            }
+
+            if draftCount > 0 || attemptCount > 0 {
+                Text("\(draftCount) draft(s), \(attemptCount) completed")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             if let errorMessage {
