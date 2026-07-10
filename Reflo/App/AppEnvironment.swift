@@ -7,9 +7,11 @@ struct AppEnvironment {
 
     static let live: AppEnvironment = {
         let fallback = StubBrainServices()
+        let requiredPrompts = ["questions", "mending", "second-example-prompt", "narration-reply"]
 
         guard let config = LLMConfiguration.load(),
-              let promptBuilder = try? QuizPromptBuilder(bundle: .main, resourceName: "questions", fileExtension: "md")
+              let promptBuilder = try? QuizPromptBuilder(bundle: .main, resourceName: "questions", fileExtension: "md"),
+              requiredPrompts.allSatisfy({ Bundle.main.url(forResource: $0, withExtension: "md") != nil })
         else {
             AppLog.app.notice("LLM config or prompt unavailable; using StubBrainServices.")
             return AppEnvironment(
@@ -24,8 +26,7 @@ struct AppEnvironment {
         let brain = ModelBrainServices(
             client: client,
             config: config,
-            promptBuilder: promptBuilder,
-            fallback: fallback
+            promptBuilder: promptBuilder
         )
 
         return AppEnvironment(

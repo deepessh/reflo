@@ -174,8 +174,22 @@ final class QuizPromptBuilderTests: XCTestCase {
 }
 
 final class ModelBrainServicesTests: XCTestCase {
-    func testMakeQuizUsesClientAndMapsResponse() async throws {
-        let config = LLMConfiguration(
+    private static let sampleQuestion = QuizQuestion(
+        id: "q1",
+        prompt: "Which best explains the loop?",
+        choices: [
+            "More lanes change how people drive until congestion returns.",
+            "The widening simply was not big enough.",
+            "Population growth alone caused the traffic.",
+            "Congestion is a fixed property of the road."
+        ],
+        correctIndex: 0,
+        bookExample: "The highway widening example.",
+        idea: "Feedback loops shape behavior."
+    )
+
+    private func makeConfig() -> LLMConfiguration {
+        LLMConfiguration(
             baseURL: URL(string: "https://example.com/v1")!,
             apiKey: "test-key",
             model: "test-model",
@@ -184,6 +198,10 @@ final class ModelBrainServicesTests: XCTestCase {
             useJSONResponseFormat: false,
             numQuestions: 1
         )
+    }
+
+    func testMakeQuizUsesClientAndMapsResponse() async throws {
+        let config = makeConfig()
 
         var client = FakeLanguageModelClient(responses: [
             QuizResponseParserTests.sampleJSON
@@ -192,8 +210,7 @@ final class ModelBrainServicesTests: XCTestCase {
         let brain = ModelBrainServices(
             client: client,
             config: config,
-            promptBuilder: QuizPromptBuilder(template: "BOOK: {{BOOK_TITLE}}\n{{CHAPTER_TEXT}}"),
-            fallback: StubBrainServices()
+            promptBuilder: QuizPromptBuilder(template: "BOOK: {{BOOK_TITLE}}\n{{CHAPTER_TEXT}}")
         )
 
         let questions = try await brain.makeQuiz(bookTitle: "Test Book", chapterText: "Chapter text.")
@@ -204,15 +221,7 @@ final class ModelBrainServicesTests: XCTestCase {
     }
 
     func testMakeQuizRetriesAfterParseFailure() async throws {
-        let config = LLMConfiguration(
-            baseURL: URL(string: "https://example.com/v1")!,
-            apiKey: "test-key",
-            model: "test-model",
-            temperature: 0.7,
-            maxTokens: 4096,
-            useJSONResponseFormat: false,
-            numQuestions: 1
-        )
+        let config = makeConfig()
 
         var client = FakeLanguageModelClient(responses: [
             "{ invalid",
@@ -222,12 +231,91 @@ final class ModelBrainServicesTests: XCTestCase {
         let brain = ModelBrainServices(
             client: client,
             config: config,
-            promptBuilder: QuizPromptBuilder(template: "{{BOOK_TITLE}} {{CHAPTER_TEXT}}"),
-            fallback: StubBrainServices()
+            promptBuilder: QuizPromptBuilder(template: "{{BOOK_TITLE}} {{CHAPTER_TEXT}}")
         )
 
         let questions = try await brain.makeQuiz(bookTitle: "Retry Book", chapterText: "Chapter.")
         XCTAssertEqual(questions.count, 1)
+        XCTAssertEqual(client.callCount, 2)
+    }
+
+    func testMendThrowsAfterExhaustedRetries() async throws {
+        let config = makeConfig()
+        let client = FakeLanguageModelClient(responses: ["", ""])
+        let brain = ModelBrainServices(
+            client: client,
+            config: config,
+            promptBuilder: QuizPromptBuilder(template: "{{BOOK_TITLE}}")
+        )
+
+        do {
+            _ = try await brain.mend(
+                question: Self.sampleQuestion,
+                pickedChoiceIndex: 1,
+                bookTitle: "Test Book",
+                chapterTitle: "Chapter 1"
+            )
+            XCTFail("Expected mend to throw after exhausted retries")
+        } catch let error as LanguageModelError {
+            guard case .emptyResponse = error else {
+                XCTFail("Expected LanguageModelError.emptyResponse, got \(error)")
+                return
+            }
+        }
+        XCTAssertEqual(client.callCount, 2)
+    }
+
+    func testMendRetriesThenSucceeds() async throws {
+        let config = makeConfig()
+        let client = FakeLanguageModelClient(responses: ["", "Mended explanation text."])
+        let brain = ModelBrainServices(
+            client: client,
+            config: config,
+            promptBuilder: QuizPromptBuilder(template: "{{BOOK_TITLE}}")
+        )
+
+        let text = try await brain.mend(
+            question: Self.sampleQuestion,
+            pickedChoiceIndex: 1,
+            bookTitle: "Test Book",
+            chapterTitle: "Chapter 1"
+        )
+        XCTAssertEqual(text, "Mended explanation text.")
+        XCTAssertEqual(client.callCount, 2)
+    }
+
+    func testReplyThrowsAfterExhaustedRetries() async throws {
+        let config = makeConfig()
+        let client = FakeLanguageModelClient(responses: ["", ""])
+        let brain = ModelBrainServices(
+            client: client,
+            config: config,
+            promptBuilder: QuizPromptBuilder(template: "{{BOOK_TITLE}}")
+        )
+
+        do {
+            _ = try await brain.reply(narration: "I think the main idea is feedback.", chapterText: "Chapter body.")
+            XCTFail("Expected reply to throw after exhausted retries")
+        } catch let error as LanguageModelError {
+            guard case .emptyResponse = error else {
+                XCTFail("Expected LanguageModelError.emptyResponse, got \(error)")
+                return
+            }
+        }
+        XCTAssertEqual(client.callCount, 2)
+    }
+
+    func testReplyRetriesThenSucceeds() async throws {
+        let config = makeConfig()
+        let client = FakeLanguageModelClient(responses: ["", "A thoughtful reply."])
+        let brain = ModelBrainServices(
+            client: client,
+            config: config,
+            promptBuilder: QuizPromptBuilder(template: "{{BOOK_TITLE}}")
+        )
+
+        let reply = try await brain.reply(narration: "I think the main idea is feedback.", chapterText: "Chapter body.")
+        XCTAssertEqual(reply.text, "A thoughtful reply.")
         XCTAssertEqual(client.callCount, 2)
     }
 }

@@ -6,18 +6,15 @@ struct ModelBrainServices: BrainServices {
     private let client: any LanguageModelClient
     private let config: LLMConfiguration
     private let promptBuilder: QuizPromptBuilder
-    private let fallback: any BrainServices
 
     init(
         client: any LanguageModelClient,
         config: LLMConfiguration,
-        promptBuilder: QuizPromptBuilder,
-        fallback: any BrainServices = StubBrainServices()
+        promptBuilder: QuizPromptBuilder
     ) {
         self.client = client
         self.config = config
         self.promptBuilder = promptBuilder
-        self.fallback = fallback
     }
 
     func makeQuiz(bookTitle: String, chapterText: String) async throws -> [QuizQuestion] {
@@ -75,16 +72,7 @@ struct ModelBrainServices: BrainServices {
             : "(no answer recorded)"
         logger.debug("mend idea='\(question.idea, privacy: .public)' picked=\(pickedChoiceIndex, privacy: .public)")
 
-        guard let url = Bundle.main.url(forResource: "mending", withExtension: "md"),
-              let template = try? String(contentsOf: url, encoding: .utf8)
-        else {
-            return try await fallback.mend(
-                question: question,
-                pickedChoiceIndex: pickedChoiceIndex,
-                bookTitle: bookTitle,
-                chapterTitle: chapterTitle
-            )
-        }
+        let template = try loadTemplate("mending")
 
         let choicesText = question.choices.joined(separator: "\n")
         let filled = template
@@ -142,13 +130,8 @@ struct ModelBrainServices: BrainServices {
             }
         }
 
-        logger.error("mend falling back to stub: \(lastError?.localizedDescription ?? "unknown", privacy: .public)")
-        return try await fallback.mend(
-            question: question,
-            pickedChoiceIndex: pickedChoiceIndex,
-            bookTitle: bookTitle,
-            chapterTitle: chapterTitle
-        )
+        logger.error("mend exhausted retries: \(lastError?.localizedDescription ?? "unknown", privacy: .public)")
+        throw lastError ?? LanguageModelError.emptyResponse
     }
 
     func secondExample(for question: QuizQuestion, pickedChoiceIndex: Int) async throws -> String {
@@ -160,11 +143,7 @@ struct ModelBrainServices: BrainServices {
             : "(no answer recorded)"
         logger.debug("secondExample idea='\(question.idea, privacy: .public)' picked=\(pickedChoiceIndex, privacy: .public)")
 
-        guard let url = Bundle.main.url(forResource: "second-example-prompt", withExtension: "md"),
-              let template = try? String(contentsOf: url, encoding: .utf8)
-        else {
-            return try await fallback.secondExample(for: question, pickedChoiceIndex: pickedChoiceIndex)
-        }
+        let template = try loadTemplate("second-example-prompt")
 
         let filled = template
             .replacingOccurrences(of: "{{IDEA}}", with: question.idea)
@@ -235,18 +214,14 @@ struct ModelBrainServices: BrainServices {
             }
         }
 
-        logger.error("secondExample falling back to stub: \(lastError?.localizedDescription ?? "unknown", privacy: .public)")
-        return try await fallback.secondExample(for: question, pickedChoiceIndex: pickedChoiceIndex)
+        logger.error("secondExample exhausted retries: \(lastError?.localizedDescription ?? "unknown", privacy: .public)")
+        throw lastError ?? LanguageModelError.emptyResponse
     }
 
     func reply(narration: String, chapterText: String) async throws -> NarrationReply {
         logger.debug("reply narrationChars=\(narration.count, privacy: .public) chapterChars=\(chapterText.count, privacy: .public)")
 
-        guard let url = Bundle.main.url(forResource: "narration-reply", withExtension: "md"),
-              let template = try? String(contentsOf: url, encoding: .utf8)
-        else {
-            return try await fallback.reply(narration: narration, chapterText: chapterText)
-        }
+        let template = try loadTemplate("narration-reply")
 
         let filled = template
             .replacingOccurrences(of: "{{CHAPTER_TEXT}}", with: chapterText)
@@ -295,8 +270,19 @@ struct ModelBrainServices: BrainServices {
             }
         }
 
-        logger.error("reply falling back to stub: \(lastError?.localizedDescription ?? "unknown", privacy: .public)")
-        return try await fallback.reply(narration: narration, chapterText: chapterText)
+        logger.error("reply exhausted retries: \(lastError?.localizedDescription ?? "unknown", privacy: .public)")
+        throw lastError ?? LanguageModelError.emptyResponse
+    }
+
+    private func loadTemplate(_ resource: String) throws -> String {
+        guard let url = Bundle.main.url(forResource: resource, withExtension: "md") else {
+            throw LanguageModelError.missingPromptResource(name: "\(resource).md")
+        }
+        let data = try Data(contentsOf: url)
+        guard let template = String(data: data, encoding: .utf8) else {
+            throw LanguageModelError.decoding(message: "Prompt resource \(resource).md is not valid UTF-8.")
+        }
+        return template
     }
 
     private func isRetryable(_ error: Error) -> Bool {

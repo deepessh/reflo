@@ -37,6 +37,7 @@ enum LanguageModelError: Error, LocalizedError, Sendable {
     case decoding(message: String)
     case truncated
     case contextWindowExceeded
+    case missingPromptResource(name: String)
 
     var errorDescription: String? {
         switch self {
@@ -54,6 +55,8 @@ enum LanguageModelError: Error, LocalizedError, Sendable {
             return "The AI response was cut off. Try again or use a shorter chapter."
         case .contextWindowExceeded:
             return "This chapter is too long for the AI model's context window."
+        case .missingPromptResource(let name):
+            return "A required prompt file (\(name)) is missing from the app bundle."
         }
     }
 }
