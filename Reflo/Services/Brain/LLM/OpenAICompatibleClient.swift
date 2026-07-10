@@ -4,59 +4,51 @@ import os
 private let logger = AppLog.llm
 
 struct OpenAICompatibleClient: LanguageModelClient {
-    private let baseURL: URL
-    private let apiKey: String
-    private let session: URLSession
+    private let endpoint: LLMEndpoint
+    private let apiKey: String?
+    private let transport: any HTTPTransport
 
-    init(configuration: LLMConfiguration, session: URLSession? = nil) {
-        self.baseURL = configuration.baseURL
+    init(configuration: LLMConfiguration, transport: any HTTPTransport) {
+        self.endpoint = configuration.endpoint
         self.apiKey = configuration.apiKey
-
-        if let session {
-            self.session = session
-        } else {
-            let config = URLSessionConfiguration.default
-            config.timeoutIntervalForRequest = 150
-            config.timeoutIntervalForResource = 300
-            self.session = URLSession(configuration: config)
-        }
+        self.transport = transport
     }
 
     func complete(_ request: CompletionRequest) async throws -> CompletionResponse {
-        let url = baseURL.appendingPathComponent("chat/completions")
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.httpBody = try JSONEncoder().encode(makeBody(for: request))
-
-        logger.debug("POST \(url.absoluteString, privacy: .public) model=\(request.model, privacy: .public) messages=\(request.messages.count, privacy: .public) maxTokens=\(request.maxTokens, privacy: .public)")
-
-        let started = Date()
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await session.data(for: urlRequest)
-        } catch {
-            logger.error("Network error: \(error.localizedDescription, privacy: .public)")
-            throw LanguageModelError.network(message: error.localizedDescription)
+        let url = endpoint.routeURL(for: .chatCompletions)
+        var headers = [
+            "Content-Type": "application/json"
+        ]
+        if let apiKey, !apiKey.isEmpty {
+            headers["Authorization"] = "Bearer \(apiKey)"
         }
 
-        guard let http = response as? HTTPURLResponse else {
-            logger.error("Invalid response type (not HTTPURLResponse).")
-            throw LanguageModelError.network(message: "Invalid response type.")
+        logger.debug("POST chat/completions model=\(request.model, privacy: .public) messages=\(request.messages.count, privacy: .public) maxTokens=\(request.maxTokens, privacy: .public)")
+
+        let started = Date()
+        let response: HTTPResponse
+        do {
+            response = try await transport.send(
+                HTTPRequest(
+                    url: url,
+                    method: "POST",
+                    headers: headers,
+                    body: try JSONEncoder().encode(makeBody(for: request))
+                )
+            )
+        } catch {
+            throw LanguageModelError.network(message: "Network request failed.")
         }
 
         let elapsedMS = Date().timeIntervalSince(started) * 1000
-        logger.debug("HTTP \(http.statusCode, privacy: .public) in \(elapsedMS, format: .fixed(precision: 0), privacy: .public)ms, \(data.count, privacy: .public) bytes")
+        logger.debug("chat/completions HTTP \(response.statusCode, privacy: .public) in \(elapsedMS, format: .fixed(precision: 0), privacy: .public)ms, \(response.body.count, privacy: .public) bytes")
 
-        guard (200 ... 299).contains(http.statusCode) else {
-            let body = String(data: data, encoding: .utf8) ?? ""
-            logger.error("HTTP \(http.statusCode): \(body, privacy: .private)")
-            throw LanguageModelError.http(status: http.statusCode)
+        guard (200 ... 299).contains(response.statusCode) else {
+            logger.error("chat/completions HTTP \(response.statusCode, privacy: .public)")
+            throw LanguageModelError.http(status: response.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(ChatCompletionResponse.self, from: data)
+        let decoded = try JSONDecoder().decode(ChatCompletionResponse.self, from: response.body)
         guard let choice = decoded.choices.first else {
             logger.error("Decoded response had no choices.")
             throw LanguageModelError.emptyResponse

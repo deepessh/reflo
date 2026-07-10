@@ -22,6 +22,13 @@
 	<string>1</string>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Reflo connects to LLM servers on your local network when you configure a private endpoint.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Reflo listens so you can explain what you learned out loud. Audio stays on your phone.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

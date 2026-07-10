@@ -42,7 +42,7 @@ enum LanguageModelError: Error, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .notConfigured:
-            return "AI is not configured. Copy LLMConfig.example.plist to LLMConfig.plist and add your key."
+            return "AI is not configured. Open Settings to add your endpoint and model."
         case .http(let status):
             return "The AI service returned an error (HTTP \(status))."
         case .network(let message):

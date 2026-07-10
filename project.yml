@@ -22,6 +22,9 @@ targets:
     platform: iOS
     sources:
       - path: Reflo
+        excludes:
+          - Resources/LLMConfig.plist
+          - Resources/LLMConfig.example.plist
       - path: prompts/questions.md
         buildPhase: resources
       - path: prompts/second-example-prompt.md
@@ -53,6 +56,9 @@ targets:
           - UIInterfaceOrientationPortrait
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
+        NSLocalNetworkUsageDescription: "Reflo connects to LLM servers on your local network when you configure a private endpoint."
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
 
   RefloTests:
     type: bundle.unit-test

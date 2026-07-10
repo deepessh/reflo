@@ -189,8 +189,9 @@ final class ModelBrainServicesTests: XCTestCase {
     )
 
     private func makeConfig() -> LLMConfiguration {
-        LLMConfiguration(
-            baseURL: URL(string: "https://example.com/v1")!,
+        let endpoint = try! LLMEndpoint.parse("https://example.com/v1")
+        return LLMConfiguration(
+            endpoint: endpoint,
             apiKey: "test-key",
             model: "test-model",
             temperature: 0.7,

@@ -2,8 +2,10 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct LibraryView: View {
+    @Environment(\.appEnvironment) private var appEnvironment
     @StateObject private var viewModel: LibraryViewModel
     @State private var isImporterPresented = false
+    @State private var isSettingsPresented = false
 
     init(viewModel: LibraryViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -48,9 +50,24 @@ struct LibraryView: View {
         }
         .navigationTitle("Library")
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    isSettingsPresented = true
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 addButton
             }
+        }
+        .sheet(isPresented: $isSettingsPresented) {
+            LLMSettingsView(
+                viewModel: LLMSettingsViewModel(
+                    repository: appEnvironment.llmSettingsRepository,
+                    catalogClient: appEnvironment.modelCatalogClient
+                )
+            )
         }
         .fileImporter(
             isPresented: $isImporterPresented,

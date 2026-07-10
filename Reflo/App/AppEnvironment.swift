@@ -4,35 +4,30 @@ struct AppEnvironment {
     let libraryStore: LibraryStore
     let epubBookCache: EPUBBookCache
     let brain: any BrainServices
+    let llmSettingsRepository: LLMSettingsRepository
+    let modelCatalogClient: ModelCatalogClient
 
     static let live: AppEnvironment = {
-        let fallback = StubBrainServices()
-        let requiredPrompts = ["questions", "mending", "second-example-prompt", "narration-reply"]
+        let repository = LLMSettingsRepository()
+        let transport = NoRedirectURLSessionTransport()
+        let catalogClient = ModelCatalogClient(transport: transport)
 
-        guard let config = LLMConfiguration.load(),
-              let promptBuilder = try? QuizPromptBuilder(bundle: .main, resourceName: "questions", fileExtension: "md"),
-              requiredPrompts.allSatisfy({ Bundle.main.url(forResource: $0, withExtension: "md") != nil })
-        else {
-            AppLog.app.notice("LLM config or prompt unavailable; using StubBrainServices.")
-            return AppEnvironment(
-                libraryStore: LibraryStore(),
-                epubBookCache: EPUBBookCache(),
-                brain: fallback
-            )
+        let quizPromptBuilderResult: Result<QuizPromptBuilder, Error> = Result {
+            try QuizPromptBuilder(bundle: .main, resourceName: "questions", fileExtension: "md")
         }
 
-        AppLog.app.debug("Configured ModelBrainServices model=\(config.model, privacy: .public)")
-        let client = OpenAICompatibleClient(configuration: config)
-        let brain = ModelBrainServices(
-            client: client,
-            config: config,
-            promptBuilder: promptBuilder
+        let brain = ConfigurableBrainServices(
+            repository: repository,
+            transport: transport,
+            quizPromptBuilderResult: quizPromptBuilderResult
         )
 
         return AppEnvironment(
             libraryStore: LibraryStore(),
             epubBookCache: EPUBBookCache(),
-            brain: brain
+            brain: brain,
+            llmSettingsRepository: repository,
+            modelCatalogClient: catalogClient
         )
     }()
 }
